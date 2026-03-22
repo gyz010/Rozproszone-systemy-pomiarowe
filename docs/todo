@@ -1,0 +1,4 @@
+Połączenie z serwerem MQTT:
+IP wsl: `wsl hostname -I`
+
+Port forwarding na wsl:1883 `netsh interface portproxy add v4tov4 listenport=1883 listenaddress=0.0.0.0 connectport=1883 connectaddress=<WSL_IP>`
