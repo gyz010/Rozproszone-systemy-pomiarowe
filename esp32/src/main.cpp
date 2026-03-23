@@ -55,10 +55,11 @@ void connectMQTT() {
 
 
 void publishMeasurement() {
+    float internalTemp = temperatureRead();
     StaticJsonDocument<256> doc;
     doc["device_id"] = deviceId;
     doc["sensor"] = "temperature";
-    doc["value"] = 24.5;
+    doc["value"] = internalTemp;
     doc["unit"] = "C";
     doc["ts_ms"] = millis();
     char payload[256];
