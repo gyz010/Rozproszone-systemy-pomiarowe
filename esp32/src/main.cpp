@@ -8,7 +8,7 @@ WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 String deviceId;
 String topic;
-
+bool time_synchronised = false;
 
 String generateDeviceIdFromEfuse() {
     uint64_t chipId = ESP.getEfuseMac();
@@ -53,6 +53,21 @@ void connectMQTT() {
     }
 }
 
+void syncTimeNTP() {
+    configTime(3600, 0, "pool.ntp.org", "time.nist.gov");
+    struct tm timeinfo;
+    while (!getLocalTime(&timeinfo)) {
+        Serial.println("Oczekiwanie na synchronizacje czasu...");
+        delay(500);
+    }
+    Serial.println("Czas zsynchronizowany.");
+}
+
+long long getTimestampMs() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return ((long long)tv.tv_sec * 1000LL) + (tv.tv_usec / 1000);
+}
 
 void publishMeasurement() {
     StaticJsonDocument<256> doc;
@@ -60,7 +75,7 @@ void publishMeasurement() {
     doc["sensor"] = "temperature";
     doc["value"] = 24.5;
     doc["unit"] = "C";
-    doc["ts_ms"] = millis();
+    doc["ts_ms"] = getTimestampMs();
     char payload[256];
     serializeJson(doc, payload);
     mqttClient.publish(topic.c_str(), payload);
@@ -68,6 +83,7 @@ void publishMeasurement() {
     Serial.println(topic);
     Serial.println(payload);
 }
+
 
 
 void setup() {
@@ -79,17 +95,27 @@ void setup() {
     Serial.println(deviceId);
     connectWiFi();
     connectMQTT();
+
 }
+
+
+
+
 
 
 void loop() {
     if (WiFi.status() != WL_CONNECTED) {
         connectWiFi();
     }
+    if(!time_synchronised) {
+        syncTimeNTP();
+    }
     if (!mqttClient.connected()) {
         connectMQTT();
     }
     mqttClient.loop();
+    
+
     publishMeasurement();
     delay(5000);
 }
