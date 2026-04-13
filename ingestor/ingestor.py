@@ -52,10 +52,15 @@ def on_message(client, userdata, msg):
     except Exception as e:
         print(f"Błąd przetwarzania wiadomości: {e}")
 
-client = mqtt.Client()
-client.on_connect = on_connect
-client.on_message = on_message
+def main():
+    client = mqtt.Client()
+    client.on_connect = on_connect
+    client.on_message = on_message
 
-print("Uruchamianie ingestora...")
-client.connect(MQTT_HOST, MQTT_PORT, 60)
-client.loop_forever()
+    print("Uruchamianie ingestora...")
+    client.connect(MQTT_HOST, MQTT_PORT, 60)
+    client.loop_forever()
+
+if __name__ == "__main__":
+    main()
+
