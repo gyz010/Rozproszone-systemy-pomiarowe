@@ -4,7 +4,7 @@
 #include <ArduinoJson.h>
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_BME280.h>
+#include <Adafruit_BMP280.h>
 #include "secrets.h"
 
 WiFiClient espClient;
@@ -13,7 +13,7 @@ String deviceId;
 String topic;
 
 // Tworzenie obiektu BME280 (domyślnie dla interfejsu I2C)
-Adafruit_BME280 bme;
+Adafruit_BMP280 bme;
 
 String generateDeviceIdFromEfuse()
 {
