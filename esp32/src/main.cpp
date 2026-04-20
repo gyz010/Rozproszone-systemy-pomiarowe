@@ -2,12 +2,18 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
 #include "secrets.h"
 
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 String deviceId;
 String topic;
+
+// Tworzenie obiektu BME280 (domyślnie dla interfejsu I2C)
+Adafruit_BME280 bme;
 
 String generateDeviceIdFromEfuse()
 {
@@ -60,11 +66,15 @@ void connectMQTT()
 
 void publishMeasurement()
 {
-    float internalTemp = temperatureRead();
+    float temp = bme.readTemperature();
+    // Możesz również odczytać inne parametry:
+    // float hum = bme.readHumidity();
+    // float pres = bme.readPressure() / 100.0F;
+
     StaticJsonDocument<256> doc;
     doc["device_id"] = deviceId;
     doc["sensor"] = "temperature";
-    doc["value"] = internalTemp;
+    doc["value"] = temp;
     doc["unit"] = "C";
     doc["ts_ms"] = millis();
     char payload[256];
@@ -79,6 +89,15 @@ void setup()
 {
     Serial.begin(115200);
     delay(1000);
+
+    // Inicjalizacja czujnika BME280 po I2C
+    // Adres może różnić się w zależności od modułu (często 0x76 lub 0x77)
+    if (!bme.begin(0x76)) {
+        Serial.println("Nie znaleziono czujnika BME280! Sprawdz polaczenia.");
+        // W razie problemów zatrzymaj program
+        // while (1) delay(10);
+    }
+
     deviceId = generateDeviceIdFromEfuse();
     topic = "lab/" + String(MQTT_GROUP) + "/" + deviceId + "/temperature";
     Serial.print("Device ID: ");
