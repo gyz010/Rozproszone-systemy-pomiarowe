@@ -17,6 +17,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Skopiuj pliki kodu aplikacji.
 COPY *.py .
+COPY .env .
 
 # Utwórz użytkownika niebędącego administratorem ze względów bezpieczeństwa i przejdź do niego
 RUN useradd -m appuser && chown -R appuser /app

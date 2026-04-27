@@ -19,9 +19,9 @@ def get_measurements():
             ORDER BY id DESC
             LIMIT 20;
         """)
-        conn.close()
-        return jsonify(cur.fetchall())
-    
+        results = cur.fetchall()
+    conn.close()
+    return jsonify(results)
 
 @app.route("/latest", methods=["GET"])
 def get_latest():
@@ -34,8 +34,9 @@ def get_latest():
             ORDER BY id DESC
             LIMIT 1;
         """)
-        conn.close()
-        return jsonify(cur.fetchall())
+        results = cur.fetchall()
+    conn.close()
+    return jsonify(results)
 
     
 @app.route("/health", methods=["GET"])
