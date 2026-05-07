@@ -23,6 +23,10 @@ def get_measurements():
     conn.close()
     return jsonify(results)
 
+
+
+
+
 @app.route("/latest", methods=["GET"])
 def get_latest():
     conn = get_connection() 
@@ -37,6 +41,20 @@ def get_latest():
         results = cur.fetchall()
     conn.close()
     return jsonify(results)
+
+@app.route("/devices", methods=["GET"])
+def get_devices():
+    conn = get_connection() 
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("""
+            SELECT DISTINCT sensor 
+            FROM measurements 
+            ORDER BY sensor;
+        """)
+        results = cur.fetchall()
+    conn.close()
+    return jsonify(results)
+
 
     
 @app.route("/health", methods=["GET"])
