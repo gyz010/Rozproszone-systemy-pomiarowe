@@ -47,14 +47,29 @@ def get_devices():
     conn = get_connection() 
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute("""
-            SELECT DISTINCT sensor 
+            SELECT DISTINCT device_id 
             FROM measurements 
-            ORDER BY sensor;
+            ORDER BY device_id;
         """)
         results = cur.fetchall()
     conn.close()
     return jsonify(results)
 
+@app.route("/measurements/<device_id>", methods=["GET"])
+def get_measurements_by_device(device_id: str):
+    conn = get_connection()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("""
+            SELECT id, group_id, device_id, sensor, value, unit, ts_ms, seq, topic, 
+                   to_char(received_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as received_at 
+            FROM measurements
+            WHERE device_id = %s
+            ORDER BY id DESC
+            LIMIT 20;
+        """, (device_id,))
+        results = cur.fetchall()
+    conn.close()
+    return jsonify(results)
 
     
 @app.route("/health", methods=["GET"])
