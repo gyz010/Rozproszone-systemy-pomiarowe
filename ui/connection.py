@@ -30,7 +30,11 @@ class RestInterface():
         reply = self.nam.get(request)
         reply.finished.connect(lambda r=reply: self._on_sensor_data_fetched(r, callback))
 
-
+    def fetch_health(self, callback) -> None:
+        target_url = self.url.toString().rstrip('/') + "/health"
+        request = QNetworkRequest(QUrl(target_url))
+        reply = self.nam.get(request)
+        reply.finished.connect(lambda r=reply: self._on_health_fetched(r, callback))
 
     @staticmethod
     def _on_devices_fetched(reply: QNetworkReply, callback) -> None:
@@ -66,7 +70,18 @@ class RestInterface():
             
         reply.deleteLater()
 
-    
+    @staticmethod
+    def _on_health_fetched(reply: QNetworkReply, callback) -> None:
+        if reply.error() == QNetworkReply.NetworkError.NoError:
+            raw_data = reply.readAll().data().decode('utf-8')
+            try:
+                payload = json.loads(raw_data)
+                callback(payload.get("status", "unknown"))
+            except json.JSONDecodeError:
+                callback(None)
+        else:
+            callback(None)
+        reply.deleteLater()
 
 
 class ConnectionWindow(QMainWindow):
