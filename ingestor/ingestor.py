@@ -1,10 +1,12 @@
 import json
+import os
 import paho.mqtt.client as mqtt
 from db import get_connection
 
 MQTT_HOST = "broker"
-MQTT_PORT = 1883
+MQTT_PORT = 8883
 MQTT_TOPIC = "lab/+/+/+"
+CA_CERT_PATH = os.path.join(os.path.dirname(__file__), "certs", "ca.crt")
 
 def is_valid(data):
     required = ["device_id", "sensor", "value", "ts_ms"]
@@ -34,8 +36,8 @@ def save_measurement(topic, data):
     except Exception as e:
         print(f"Błąd zapisu do bazy: {e}")
 
-def on_connect(client, userdata, flags, rc):
-    print(f"Połączono z brokerem MQTT (kod: {rc})")
+def on_connect(client, userdata, flags, rc, properties=None):
+    print(f"Połączono z brokerem MQTT przez TLS (kod: {rc})")
     client.subscribe(MQTT_TOPIC)
 
 def on_message(client, userdata, msg):
@@ -53,14 +55,14 @@ def on_message(client, userdata, msg):
         print(f"Błąd przetwarzania wiadomości: {e}")
 
 def main():
-    client = mqtt.Client()
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    client.tls_set(ca_certs=CA_CERT_PATH)
     client.on_connect = on_connect
     client.on_message = on_message
 
-    print("Uruchamianie ingestora...")
+    print("Uruchamianie ingestora (TLS)...")
     client.connect(MQTT_HOST, MQTT_PORT, 60)
     client.loop_forever()
 
 if __name__ == "__main__":
     main()
-

@@ -33,7 +33,7 @@ class MainGui(QMainWindow):
 
         top_bar = QHBoxLayout()
         self.connection_label = QLabel("Not connected")
-        self.health_label = QLabel("Health: —")
+        self.health_label = QLabel("Health: -")
         top_bar.addWidget(self.connection_label)
         top_bar.addStretch()
         top_bar.addWidget(self.health_label)
@@ -50,7 +50,7 @@ class MainGui(QMainWindow):
         device_row.addWidget(self.device_combo)
         left_panel.addLayout(device_row)
 
-        self.last_updated_label = QLabel("Last updated: —")
+        self.last_updated_label = QLabel("Last updated: -")
         self.last_updated_label.setStyleSheet("color: gray;")
         left_panel.addWidget(self.last_updated_label)
         left_panel.addStretch()

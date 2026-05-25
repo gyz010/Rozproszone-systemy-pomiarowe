@@ -28,8 +28,22 @@ git clone https://github.com/mateuszbartczak-pwr/Rozproszone-systemy-pomiarowe.g
 cd Rozproszone-systemy-pomiarowe
 ```
 
+### Certyfikaty TLS (MQTT)
+
+Przed pierwszym uruchomieniem wygeneruj certyfikaty brokera (WSL/Linux):
+
+```bash
+cd broker/certs
+chmod +x generate-certs.sh
+./generate-certs.sh
+cp ca.crt ../../ingestor/certs/
+```
+
+Następnie zaktualizuj `esp32/include/ca_cert.h` zawartością `broker/certs/ca.crt` (jeśli generujesz certyfikaty ponownie).
+
 ### Uruchomienie środowiska
-Aby zbudować i uruchomić wszystkie dostępne serwisy:
+Aby zbudować i uruchomić wszystkie dostępne serwisy (z WSL):
+
 ```bash
 docker compose up --build
 ```
@@ -48,9 +62,9 @@ Po uruchomieniu Docker Compose powinny być dostępne następujące usługi:
 
 - REST API (Flask) — http://localhost:5001
 
-- Broker MQTT — localhost:1883
+- Broker MQTT (TLS) — localhost:8883
 
-- PostgreSQL — localhost:5432
+- PostgreSQL — dostępna tylko w sieci Docker `backend` (bez mapowania portu na hosta)
 
 ### Podgląd logów
 

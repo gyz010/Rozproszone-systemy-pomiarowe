@@ -36,7 +36,7 @@ docker compose ps
 Spodziewane kontenery:
 
 - `api` (serwis Flask na porcie 5001)
-- `broker` (serwis MQTT Mosquitto na porcie 1883)
+- `broker` (serwis MQTT Mosquitto na porcie 8883 z TLS)
 - `postgres` (baza danych PostgreSQL na porcie 5432)
 - `ingestor` (serwis ingestora – brak mapowania portów)
 

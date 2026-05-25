@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <Wire.h>
@@ -7,8 +8,9 @@
 #include <Adafruit_BMP280.h>
 #include <sys/time.h>
 #include "secrets.h"
+#include "ca_cert.h"
 
-WiFiClient espClient;
+WiFiClientSecure espClient;
 PubSubClient mqttClient(espClient);
 String deviceId;
 String measurementTopic;
@@ -139,9 +141,9 @@ void setup() {
     Serial.print("Device ID: ");
     Serial.println(deviceId);
 
+    espClient.setCACert(ca_cert);
     mqttClient.setServer(MQTT_HOST, MQTT_PORT);
     
-    // Pierwsza próba połączenia (inicjalna)
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 }
