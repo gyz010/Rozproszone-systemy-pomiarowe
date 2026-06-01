@@ -11,13 +11,11 @@
 #include "secrets.h"
 #include "ca_cert.h"
 
-<<<<<<< HEAD
-WiFiClientSecure espClient;
-=======
-static const int SCHEMA_VERSION = 1;
+#ifndef MQTT_TLS_CN
+#define MQTT_TLS_CN "broker"
+#endif
 
-WiFiClient espClient;
->>>>>>> 7f6edb181082e6bf38af18fe18d3acdc9e7bb72b
+WiFiClientSecure espClient;
 PubSubClient mqttClient(espClient);
 String deviceId;
 String measurementTopic;
@@ -80,8 +78,7 @@ void syncNtpIfNeeded() {
 }
 
 String buildWillPayload() {
-    StaticJsonDocument<192> doc;
-    doc["schema_version"] = SCHEMA_VERSION;
+    JsonDocument doc;
     doc["group_id"] = MQTT_GROUP;
     doc["device_id"] = deviceId;
     doc["status"] = "offline";
@@ -96,8 +93,7 @@ void publishStatus(const char* state) {
         return;
     }
 
-    StaticJsonDocument<192> doc;
-    doc["schema_version"] = SCHEMA_VERSION;
+    JsonDocument doc;
     doc["group_id"] = MQTT_GROUP;
     doc["device_id"] = deviceId;
     doc["status"] = state;
@@ -144,6 +140,22 @@ bool connectMqttIfNeeded() {
 
     Serial.print("Laczenie z MQTT...");
 
+    IPAddress brokerIp;
+    if (!brokerIp.fromString(MQTT_HOST)) {
+        Serial.println("blad: niepoprawny MQTT_HOST");
+        return false;
+    }
+
+    if (!espClient.connected()) {
+        if (!espClient.connect(brokerIp, MQTT_PORT, MQTT_TLS_CN, ca_cert, nullptr, nullptr)) {
+            char tlsError[128];
+            espClient.lastError(tlsError, sizeof(tlsError));
+            Serial.print("blad TLS: ");
+            Serial.println(tlsError);
+            return false;
+        }
+    }
+
     String willPayload = buildWillPayload();
 
     bool ok = mqttClient.connect(
@@ -177,8 +189,7 @@ void publishMeasurement() {
 
     float temp = bme.readTemperature();
 
-    StaticJsonDocument<320> doc;
-    doc["schema_version"] = SCHEMA_VERSION;
+    JsonDocument doc;
     doc["group_id"] = MQTT_GROUP;
     doc["device_id"] = deviceId;
     doc["sensor"] = "temperature";
@@ -215,11 +226,7 @@ void setup() {
 
     espClient.setCACert(ca_cert);
     mqttClient.setServer(MQTT_HOST, MQTT_PORT);
-<<<<<<< HEAD
     
-=======
-
->>>>>>> 7f6edb181082e6bf38af18fe18d3acdc9e7bb72b
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 }
