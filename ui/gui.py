@@ -8,13 +8,22 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QUrl, pyqtSignal, QTimer
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 import pyqtgraph as pg
-import numpy as np
 
 
 from connection import ConnectionWindow, RestInterface
 
 
+class TimeAxisItem(pg.AxisItem):
+    def tickStrings(self, values, scale, spacing):
+        return [
+            datetime.fromtimestamp(value / 1000).strftime("%H:%M:%S")
+            for value in values
+        ]
+
+
 class MainGui(QMainWindow):
+    DATA_REFRESH_INTERVAL_MS = 1000
+
     def __init__(self) -> None:
         super().__init__()
         self.nam = QNetworkAccessManager()
@@ -22,7 +31,8 @@ class MainGui(QMainWindow):
         self.setFixedSize(800, 600)
         self._init_ui()
 
-        self._data_points = np.array([])
+        self._data_points = []
+        self._is_fetching_data = False
 
     def _init_ui(self) -> None:
         central_widget = QWidget()
@@ -57,7 +67,9 @@ class MainGui(QMainWindow):
         content.addLayout(left_panel, stretch=3)
 
         right_panel = QVBoxLayout()
-        self.plot_widget = pg.PlotWidget()
+        self.plot_widget = pg.PlotWidget(
+            axisItems={"bottom": TimeAxisItem(orientation="bottom")}
+        )
         self.plot_widget.setLabel('left', 'Value')
         self.plot_widget.setLabel('bottom', 'Samples')
         self.curve = self.plot_widget.plot(pen=pg.mkPen('g', width=2))
@@ -80,6 +92,10 @@ class MainGui(QMainWindow):
         self._health_timer.setInterval(5000)
         self._health_timer.timeout.connect(self._poll_health)
 
+        self._data_timer = QTimer(self)
+        self._data_timer.setInterval(self.DATA_REFRESH_INTERVAL_MS)
+        self._data_timer.timeout.connect(self._refresh_sensor_data)
+
     def _configure_static_plot(self) -> None:
         plot_item = self.plot_widget.getPlotItem()
         plot_item.setMouseEnabled(x=False, y=False)
@@ -96,6 +112,7 @@ class MainGui(QMainWindow):
         self._update_sensor_list()
         self._poll_health()
         self._health_timer.start()
+        self._data_timer.start()
 
     def _poll_health(self) -> None:
         if hasattr(self, "rest_interface"):
@@ -122,13 +139,27 @@ class MainGui(QMainWindow):
         self.device_combo.addItems(sensors)
         self.device_combo.setEnabled(True)
 
-    def _on_sensor_changed(self):
+    def _on_sensor_changed(self, *_args):
+        self._data_points = []
+        self._populate_graph()
+        self._refresh_sensor_data()
+
+    def _refresh_sensor_data(self) -> None:
+        if not hasattr(self, "rest_interface") or self._is_fetching_data:
+            return
+
+        selected_device = self.device_combo.currentText()
+        if not selected_device:
+            return
+
+        self._is_fetching_data = True
         self.rest_interface.fetch_sensor_data(
-            sensor=self.device_combo.currentText(), 
+            sensor=selected_device,
             callback=self._handle_sensor_data
         )
 
     def _handle_sensor_data(self, data):
+        self._is_fetching_data = False
         if data:
             self._data_points = data
             self._populate_graph()
@@ -153,7 +184,7 @@ class MainGui(QMainWindow):
         self.plot_widget.clear()
         plot_item = self.plot_widget.getPlotItem()
         plot_item.setLabel("left", sensor, units=unit)
-        plot_item.setLabel("bottom", "Time", units="ms")
+        plot_item.setLabel("bottom", "Time")
         
         self.plot_widget.plot(
             x, y, 

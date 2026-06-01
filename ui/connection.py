@@ -62,7 +62,10 @@ class RestInterface():
                 payload = json.loads(raw_data)
                 if isinstance(payload, list):
                     callback(payload) #return raw json data as is 
+                else:
+                    callback(None)
             except json.JSONDecodeError:
+                callback(None)
                 print("JSON Parsing error.")
         else:
             callback(None)
