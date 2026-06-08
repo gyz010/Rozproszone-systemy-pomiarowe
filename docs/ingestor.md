@@ -6,7 +6,8 @@ Serwis **ingestor** jest kluczowym komponentem systemu rozproszonego. Jego zadan
 
 - **Subskrybowanie topicu MQTT** `lab/+/+/+` (wszelkich wiadomości z urządzeń pomiarowych)
 - **Parsowanie payloadu JSON** przychodzących wiadomości
-- **Walidacja danych** – sprawdzenie, czy wiadomość zawiera wymagane pola: `device_id`, `sensor`, `value`, `ts_ms`
+- **Walidacja danych** – sprawdzenie obecności i typów pól wymaganych (`device_id`, `sensor`, `value`, `ts_ms`) zgodnie z `docs/message_contract.md`
+- **Uzupełnianie `group_id`** – gdy brak w JSON, wartość jest wyciągana z topicu `lab/<group_id>/<device_id>/<sensor>`
 - **Zapis do bazy danych** – poprawne wiadomości zapisywane są w tabeli `measurements` bazy PostgreSQL
 - **Obsługa błędów** – wiadomości niezgodne ze schematem są rejestrowane w logach i odrzucane
 
@@ -60,7 +61,7 @@ docker compose logs -f ingestor
 
 Spodziewane logi:
 
-- `Połączono z brokerem MQTT (kod: 0)` – pomyślne połączenie
+- `Połączono z brokerem MQTT przez TLS (kod: 0)` – pomyślne połączenie
 - `Poprawnie zapisano wiadomość z: lab/...` – pomyślny zapis do bazy
 - `Niepoprawny format danych: ...` – wiadomość odrzucona z powodu walidacji
 - `Błąd przetwarzania wiadomości: ...` – błąd parsowania lub przetwarzania
@@ -98,14 +99,16 @@ Aby wyjść z shellu PostgreSQL:
 \q
 ```
 
-### 3.3. Testowanie za pomocą publikacji wiadomości
+### 3.3. Testowanie za pomocą publikacji wiadomości (TLS)
 
-Aby przetestować system, opublikuj wiadomość MQTT za pomocą narzędzia `mosquitto_pub`:
+Broker nasłuchuje wyłącznie na porcie **8883** z TLS. Publikacja testowa z kontenera brokera:
 
 ```bash
 docker compose exec broker mosquitto_pub \
   -h broker \
-  -t "lab/gr1/esp32-test/temperature" \
+  -p 8883 \
+  --cafile /mosquitto/certs/ca.crt \
+  -t "lab/g02/esp32-test/temperature" \
   -m '{"device_id":"esp32-test","sensor":"temperature","value":22.5,"ts_ms":1710928373000,"unit":"C","seq":1}'
 ```
 
@@ -114,8 +117,31 @@ Przykład pomiaru ciśnienia:
 ```bash
 docker compose exec broker mosquitto_pub \
   -h broker \
-  -t "lab/gr1/esp32-test/pressure" \
+  -p 8883 \
+  --cafile /mosquitto/certs/ca.crt \
+  -t "lab/g02/esp32-test/pressure" \
   -m '{"device_id":"esp32-test","sensor":"pressure","value":1008.4,"ts_ms":1710928373000,"unit":"hPa","seq":2}'
+```
+
+Subskrypcja testowa (w osobnym terminalu):
+
+```bash
+docker compose exec broker mosquitto_sub \
+  -h broker \
+  -p 8883 \
+  --cafile /mosquitto/certs/ca.crt \
+  -t "lab/+/+/+"
+```
+
+Test z hosta (poza Dockerem), jeśli masz zainstalowane narzędzia Mosquitto:
+
+```bash
+mosquitto_pub \
+  -h localhost \
+  -p 8883 \
+  --cafile broker/certs/ca.crt \
+  -t "lab/g02/esp32-test/temperature" \
+  -m '{"device_id":"esp32-test","sensor":"temperature","value":22.5,"ts_ms":1710928373000,"unit":"C","seq":1}'
 ```
 
 ---
@@ -124,7 +150,7 @@ docker compose exec broker mosquitto_pub \
 
 ### 4.1. Poprawna wiadomość
 
-**Topic:** `lab/gr1/esp32-abc12345/temperature`
+**Topic:** `lab/g02/esp32-abc12345/temperature`
 
 **Payload:**
 
@@ -143,12 +169,31 @@ docker compose exec broker mosquitto_pub \
 **Rezultat:** Wiadomość zostanie zapisana do tabeli `measurements`. W logach ingestora pojawi się:
 
 ```
-Poprawnie zapisano wiadomość z: lab/gr1/esp32-abc12345/temperature
+Poprawnie zapisano wiadomość z: lab/g02/esp32-abc12345/temperature
 ```
 
-### 4.2. Poprawna wiadomość z ciśnieniem
+### 4.2. Poprawna wiadomość bez `group_id` w JSON
 
-**Topic:** `lab/gr1/esp32-abc12345/pressure`
+**Topic:** `lab/g02/esp32-abc12345/temperature`
+
+**Payload:**
+
+```json
+{
+  "device_id": "esp32-abc12345",
+  "sensor": "temperature",
+  "value": 24.5,
+  "ts_ms": 1710928373000,
+  "unit": "C",
+  "seq": 142
+}
+```
+
+**Rezultat:** Ingestor uzupełni `group_id` wartością `g02` na podstawie topicu i zapisze rekord do bazy.
+
+### 4.3. Poprawna wiadomość z ciśnieniem
+
+**Topic:** `lab/g02/esp32-abc12345/pressure`
 
 **Payload:**
 
@@ -164,7 +209,7 @@ Poprawnie zapisano wiadomość z: lab/gr1/esp32-abc12345/temperature
 }
 ```
 
-### 4.3. Błędna wiadomość – brakujące pole `ts_ms`
+### 4.4. Błędna wiadomość – brakujące pole `ts_ms`
 
 **Topic:** `lab/gr1/esp32-test/temperature`
 
@@ -187,7 +232,7 @@ Niepoprawny format danych: {'device_id': 'esp32-test', 'sensor': 'temperature', 
 
 **Wiadomość NIE będzie zapisana w bazie danych.**
 
-### 4.4. Błędna wiadomość – `value` jako string
+### 4.5. Błędna wiadomość – `value` jako string
 
 **Topic:** `lab/gr1/esp32-test/temperature`
 
@@ -202,11 +247,13 @@ Niepoprawny format danych: {'device_id': 'esp32-test', 'sensor': 'temperature', 
 }
 ```
 
-**Rezultat:** Wiadomość zostanie zaakceptowana na poziomie walidacji pól (wszystkie wymagane pola są obecne), ale może spowodować błąd podczas zapisu do bazy (jeśli baza wymaga typu numerycznego dla `value`). W logach:
+**Rezultat:** Wiadomość zostanie **odrzucona** na etapie walidacji typów (`value` musi być liczbą, nie stringiem). W logach:
 
 ```
-Błąd zapisu do bazy: ...
+Niepoprawny format danych: {'device_id': 'esp32-test', 'sensor': 'temperature', 'value': '23.5', 'ts_ms': 1710928373000}
 ```
+
+**Wiadomość NIE będzie zapisana w bazie danych.**
 
 ---
 
@@ -231,7 +278,7 @@ CREATE TABLE IF NOT EXISTS measurements (
 
 ---
 
-## 6. Wymagane pola w wiadomości JSON
+## 6. Wymagane pola i reguły walidacji
 
 Zgodnie z kontraktem komunikacyjnym systemu, każda wiadomość **musi zawierać**:
 
@@ -240,11 +287,20 @@ Zgodnie z kontraktem komunikacyjnym systemu, każda wiadomość **musi zawierać
 | `device_id` | string  | Identyfikator urządzenia (np. `esp32-abc12345`)    |
 | `sensor`    | string  | Typ pomiaru (np. `temperature` lub `pressure`)     |
 | `value`     | number  | Zmierzona wartość (musi być liczbą, nie stringiem) |
-| `ts_ms`     | integer | Timestamp w millisekundach epoki UNIX              |
+| `ts_ms`     | integer | Timestamp w millisekundach epoki UNIX (`> 0`)        |
+
+Reguły walidacji w ingestorze:
+
+1. `device_id` i `sensor` muszą być niepustymi stringami.
+2. `value` musi być liczbą (`int` lub `float`), nie stringiem ani `bool`.
+3. `ts_ms` musi być dodatnią liczbą całkowitą.
+4. `seq`, jeśli występuje, musi być liczbą całkowitą `>= 0`.
+5. `unit`, jeśli występuje, musi pasować do sensora (`temperature` → `C`, `pressure` → `hPa`).
+6. `group_id` może być w JSON lub zostanie pobrane z topicu `lab/<group_id>/...`.
 
 Pola opcjonalne:
 
 - `unit` – jednostka pomiarowa (`C` albo `hPa`)
 - `seq` – numer sekwencyjny wiadomości
 - `schema_version` – wersja schematu
-- `group_id` – identyfikator grupy
+- `group_id` – identyfikator grupy (opcjonalne w JSON, jeśli jest w topicu)
