@@ -35,7 +35,7 @@ _Na podstawie aktualnego formatu w `esp32/src/main.cpp`:_
 
 - `group_id`: Konfigurowalne za pomocą makra `MQTT_GROUP` (np. `gr1`).
 - `device_id`: Generowane automatycznie na podstawie adresu MAC z prefiksem np. `esp32-1A2B3C4D`.
-- `sensor`: W kodzie urządzenia nazwano to `temperature` pisane w małych literach.
+- `sensor`: W kodzie urządzenia BMP280 obsługiwane są `temperature` oraz `pressure`, pisane małymi literami.
 
 Ostateczny przykładowy topic publikacji:
 `lab/gr1/esp32-15f1ab88/temperature`
@@ -51,7 +51,7 @@ Każda przesyłana wiadomość telemetryczna zawarta w payloadzie MQTT jest zdef
 | Pole        | Typ     | Opis                                                                                                   |
 | ----------- | ------- | ------------------------------------------------------------------------------------------------------ |
 | `device_id` | string  | Unikalny identyfikator urządzenia klienta. Zgodnie z kodem ESP jest to prefiks "esp32" + hex chip_id.  |
-| `sensor`    | string  | Określenie rodzaju sensora obsługującego pomiar. Zgodnie z kodem ESP w tym projekcie: `"temperature"`. |
+| `sensor`    | string  | Określenie rodzaju pomiaru. Zgodnie z kodem ESP w tym projekcie: `"temperature"` lub `"pressure"`.      |
 | `value`     | number  | Zmierzona wielkość fizyczna (np. `24.5`). Uwaga: float lub integer, ale musi być typem liczbowym.      |
 | `ts_ms`     | integer | Znacznik czasu z wygenerowania danych w standardzie _Unix epoch_ w milisekundach.                      |
 
@@ -61,7 +61,7 @@ Każda przesyłana wiadomość telemetryczna zawarta w payloadzie MQTT jest zdef
 | ---------------- | ------- | ----------------------------------------------------------------------------------------------------------- |
 | `schema_version` | integer | Oznacza wersję zastosowanego kontraktu dla schematu. Powinna wynosić `1`.                                   |
 | `group_id`       | string  | Identyfikator przydzielonej grupy w ramach labolatorium.                                                    |
-| `unit`           | string  | Znacznik jednostki pomiarowej wygenerowanej wartości `value`. Zgodnie z kodem mikrokontrolera ESP to `"C"`. |
+| `unit`           | string  | Jednostka pomiarowa wartości `value`: `"C"` dla temperatury, `"hPa"` dla ciśnienia.                         |
 | `seq`            | integer | Sekwencyjny numer wiadomości pozwalający kontrolować czy pakiety uległy zagubieniu lub zduplikowaniu.       |
 
 ---
@@ -77,23 +77,42 @@ Dane przed wczytaniem na magazyn (backend) powinny podlegać ścisłej weryfikac
 5. Pole `unit`, jeśli występuje, **musi odpowiadać typowi sensora**.
 6. Pole `seq`, jeśli występuje, **musi być liczbą całkowitą nieujemną** (`>= 0`).
 
+Aktualnie publikowane typy pomiarów z BMP280:
+
+- `temperature` — temperatura w `C`
+- `pressure` — ciśnienie w `hPa`
+
 ---
 
 ## 4. Przykłady wiadomości (v1)
 
 ### Poprawna wiadomość wywodząca się z ESP32
 
-Zgodna struktura z polem wymaganym oraz załączonymi opcjonalnymi (np. dodanie `schema_version` oraz `seq` czy jednostką `unit="C"` wykorzystywaną na płycie testowej).
+Zgodna struktura z polami wymaganymi oraz załączonymi opcjonalnymi, takimi jak `group_id`, `unit` i `seq`.
 
 ```json
 {
+  "group_id": "g02",
   "device_id": "esp32-abc12345",
   "sensor": "temperature",
   "value": 24.5,
   "ts_ms": 1710928373000,
   "unit": "C",
-  "schema_version": 1,
   "seq": 142
+}
+```
+
+Drugi pomiar publikowany przez BMP280 to ciśnienie:
+
+```json
+{
+  "group_id": "g02",
+  "device_id": "esp32-abc12345",
+  "sensor": "pressure",
+  "value": 1008.42,
+  "ts_ms": 1710928373000,
+  "unit": "hPa",
+  "seq": 143
 }
 ```
 

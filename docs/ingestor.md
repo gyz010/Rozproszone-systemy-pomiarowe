@@ -84,9 +84,9 @@ Spodziewane kolumny:
 - `id` – identyfikator rekordu
 - `group_id` – identyfikator grupy (np. `gr1`)
 - `device_id` – identyfikator urządzenia (np. `esp32-abc12345`)
-- `sensor` – typ sensora (np. `temperature`)
+- `sensor` – typ pomiaru (np. `temperature` albo `pressure`)
 - `value` – zmierzona wartość (np. `24.5`)
-- `unit` – jednostka (np. `C`)
+- `unit` – jednostka (np. `C` albo `hPa`)
 - `ts_ms` – timestamp w ms (liczba całkowita)
 - `seq` – numer sekwencyjny
 - `topic` – topic MQTT, na którym przyszła wiadomość (np. `lab/gr1/esp32-abc12345/temperature`)
@@ -107,6 +107,15 @@ docker compose exec broker mosquitto_pub \
   -h broker \
   -t "lab/gr1/esp32-test/temperature" \
   -m '{"device_id":"esp32-test","sensor":"temperature","value":22.5,"ts_ms":1710928373000,"unit":"C","seq":1}'
+```
+
+Przykład pomiaru ciśnienia:
+
+```bash
+docker compose exec broker mosquitto_pub \
+  -h broker \
+  -t "lab/gr1/esp32-test/pressure" \
+  -m '{"device_id":"esp32-test","sensor":"pressure","value":1008.4,"ts_ms":1710928373000,"unit":"hPa","seq":2}'
 ```
 
 ---
@@ -137,7 +146,25 @@ docker compose exec broker mosquitto_pub \
 Poprawnie zapisano wiadomość z: lab/gr1/esp32-abc12345/temperature
 ```
 
-### 4.2. Błędna wiadomość – brakujące pole `ts_ms`
+### 4.2. Poprawna wiadomość z ciśnieniem
+
+**Topic:** `lab/gr1/esp32-abc12345/pressure`
+
+**Payload:**
+
+```json
+{
+  "group_id": "gr1",
+  "device_id": "esp32-abc12345",
+  "sensor": "pressure",
+  "value": 1008.4,
+  "ts_ms": 1710928373000,
+  "unit": "hPa",
+  "seq": 143
+}
+```
+
+### 4.3. Błędna wiadomość – brakujące pole `ts_ms`
 
 **Topic:** `lab/gr1/esp32-test/temperature`
 
@@ -160,7 +187,7 @@ Niepoprawny format danych: {'device_id': 'esp32-test', 'sensor': 'temperature', 
 
 **Wiadomość NIE będzie zapisana w bazie danych.**
 
-### 4.3. Błędna wiadomość – `value` jako string
+### 4.4. Błędna wiadomość – `value` jako string
 
 **Topic:** `lab/gr1/esp32-test/temperature`
 
@@ -211,13 +238,13 @@ Zgodnie z kontraktem komunikacyjnym systemu, każda wiadomość **musi zawierać
 | Pole        | Typ     | Opis                                               |
 | ----------- | ------- | -------------------------------------------------- |
 | `device_id` | string  | Identyfikator urządzenia (np. `esp32-abc12345`)    |
-| `sensor`    | string  | Typ sensora (np. `temperature`)                    |
+| `sensor`    | string  | Typ pomiaru (np. `temperature` lub `pressure`)     |
 | `value`     | number  | Zmierzona wartość (musi być liczbą, nie stringiem) |
 | `ts_ms`     | integer | Timestamp w millisekundach epoki UNIX              |
 
 Pola opcjonalne:
 
-- `unit` – jednostka pomiarowa
+- `unit` – jednostka pomiarowa (`C` albo `hPa`)
 - `seq` – numer sekwencyjny wiadomości
 - `schema_version` – wersja schematu
 - `group_id` – identyfikator grupy

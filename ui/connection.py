@@ -24,8 +24,14 @@ class RestInterface():
         reply.finished.connect(lambda r=reply: self._on_devices_fetched(r, callback))
 
 
-    def fetch_sensor_data(self, sensor, callback) -> None:
-        target_url = self.url.toString().rstrip('/') + "/measurements" + f"/{sensor}"
+    def fetch_sensors(self, device_id, callback) -> None:
+        target_url = self.url.toString().rstrip('/') + f"/devices/{device_id}/sensors"
+        request = QNetworkRequest(QUrl(target_url))
+        reply = self.nam.get(request)
+        reply.finished.connect(lambda r=reply: self._on_sensors_fetched(r, callback))
+
+    def fetch_sensor_data(self, device_id, sensor, callback) -> None:
+        target_url = self.url.toString().rstrip('/') + f"/measurements/{device_id}/{sensor}"
         request = QNetworkRequest(QUrl(target_url))
         reply = self.nam.get(request)
         reply.finished.connect(lambda r=reply: self._on_sensor_data_fetched(r, callback))
@@ -52,6 +58,26 @@ class RestInterface():
             callback(None)
             print(f"REST API Error: {reply.errorString()}")
             
+        reply.deleteLater()
+
+    @staticmethod
+    def _on_sensors_fetched(reply: QNetworkReply, callback) -> None:
+        if reply.error() == QNetworkReply.NetworkError.NoError:
+            raw_data = reply.readAll().data().decode('utf-8')
+            try:
+                payload = json.loads(raw_data)
+                if isinstance(payload, list):
+                    sensors = [item.get('sensor') for item in payload if 'sensor' in item]
+                    callback(sensors)
+                else:
+                    callback(None)
+            except json.JSONDecodeError:
+                callback(None)
+                print("JSON Parsing error.")
+        else:
+            callback(None)
+            print(f"REST API Error: {reply.errorString()}")
+
         reply.deleteLater()
 
     @staticmethod

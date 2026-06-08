@@ -33,6 +33,7 @@ class MainGui(QMainWindow):
 
         self._data_points = []
         self._is_fetching_data = False
+        self._is_loading_sensors = False
 
     def _init_ui(self) -> None:
         central_widget = QWidget()
@@ -56,9 +57,17 @@ class MainGui(QMainWindow):
         device_row.addWidget(QLabel("Device:"))
         self.device_combo = QComboBox()
         self.device_combo.setEnabled(False)
-        self.device_combo.currentTextChanged.connect(self._on_sensor_changed)
+        self.device_combo.currentTextChanged.connect(self._on_device_changed)
         device_row.addWidget(self.device_combo)
         left_panel.addLayout(device_row)
+
+        sensor_row = QHBoxLayout()
+        sensor_row.addWidget(QLabel("Sensor:"))
+        self.sensor_combo = QComboBox()
+        self.sensor_combo.setEnabled(False)
+        self.sensor_combo.currentTextChanged.connect(self._on_sensor_changed)
+        sensor_row.addWidget(self.sensor_combo)
+        left_panel.addLayout(sensor_row)
 
         self.last_updated_label = QLabel("Last updated: -")
         self.last_updated_label.setStyleSheet("color: gray;")
@@ -139,7 +148,39 @@ class MainGui(QMainWindow):
         self.device_combo.addItems(sensors)
         self.device_combo.setEnabled(True)
 
+    def _on_device_changed(self, *_args):
+        self._data_points = []
+        self._populate_graph()
+        self.sensor_combo.clear()
+        self.sensor_combo.setEnabled(False)
+
+        selected_device = self.device_combo.currentText()
+        if not selected_device:
+            return
+
+        self._is_loading_sensors = True
+        self.rest_interface.fetch_sensors(
+            device_id=selected_device,
+            callback=self._set_device_sensors
+        )
+
+    def _set_device_sensors(self, sensors):
+        if sensors is None:
+            self._is_loading_sensors = False
+            return
+
+        self.sensor_combo.blockSignals(True)
+        self.sensor_combo.clear()
+        self.sensor_combo.addItems(sensors)
+        self.sensor_combo.blockSignals(False)
+        self.sensor_combo.setEnabled(bool(sensors))
+        self._is_loading_sensors = False
+        self._refresh_sensor_data()
+
     def _on_sensor_changed(self, *_args):
+        if self._is_loading_sensors:
+            return
+
         self._data_points = []
         self._populate_graph()
         self._refresh_sensor_data()
@@ -149,12 +190,14 @@ class MainGui(QMainWindow):
             return
 
         selected_device = self.device_combo.currentText()
-        if not selected_device:
+        selected_sensor = self.sensor_combo.currentText()
+        if not selected_device or not selected_sensor:
             return
 
         self._is_fetching_data = True
         self.rest_interface.fetch_sensor_data(
-            sensor=selected_device,
+            device_id=selected_device,
+            sensor=selected_sensor,
             callback=self._handle_sensor_data
         )
 

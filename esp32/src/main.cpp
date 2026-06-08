@@ -18,7 +18,6 @@
 WiFiClientSecure espClient;
 PubSubClient mqttClient(espClient);
 String deviceId;
-String measurementTopic;
 String statusTopic;
 
 Adafruit_BMP280 bme;
@@ -177,7 +176,27 @@ bool connectMqttIfNeeded() {
     return ok;
 }
 
-void publishMeasurement() {
+void publishSensorMeasurement(const char* sensor, float value, const char* unit, long long timestampMs) {
+    JsonDocument doc;
+    doc["group_id"] = MQTT_GROUP;
+    doc["device_id"] = deviceId;
+    doc["sensor"] = sensor;
+    doc["value"] = value;
+    doc["unit"] = unit;
+    doc["ts_ms"] = timestampMs;
+    doc["seq"] = messageSeq++;
+
+    char payload[320];
+    serializeJson(doc, payload, sizeof(payload));
+
+    String topic = "lab/" + String(MQTT_GROUP) + "/" + deviceId + "/" + sensor;
+    mqttClient.publish(topic.c_str(), payload);
+
+    Serial.print("Publikacja pomiaru: ");
+    Serial.println(payload);
+}
+
+void publishMeasurements() {
     if (!mqttClient.connected()) {
         return;
     }
@@ -187,23 +206,9 @@ void publishMeasurement() {
         return;
     }
 
-    float temp = bme.readTemperature();
-
-    JsonDocument doc;
-    doc["group_id"] = MQTT_GROUP;
-    doc["device_id"] = deviceId;
-    doc["sensor"] = "temperature";
-    doc["value"] = temp;
-    doc["unit"] = "C";
-    doc["ts_ms"] = getTimestampMs();
-    doc["seq"] = messageSeq++;
-
-    char payload[320];
-    serializeJson(doc, payload, sizeof(payload));
-    mqttClient.publish(measurementTopic.c_str(), payload);
-
-    Serial.print("Publikacja pomiaru: ");
-    Serial.println(payload);
+    long long timestampMs = getTimestampMs();
+    publishSensorMeasurement("temperature", bme.readTemperature(), "C", timestampMs);
+    publishSensorMeasurement("pressure", bme.readPressure() / 100.0F, "hPa", timestampMs);
 }
 
 void setup() {
@@ -216,7 +221,6 @@ void setup() {
 
     deviceId = generateDeviceIdFromEfuse();
 
-    measurementTopic = "lab/" + String(MQTT_GROUP) + "/" + deviceId + "/temperature";
     statusTopic = "lab/" + String(MQTT_GROUP) + "/" + deviceId + "/status";
 
     Serial.print("Device ID: ");
@@ -240,6 +244,6 @@ void loop() {
 
     if (millis() - lastMeasurementMs > MEASUREMENT_PERIOD_MS) {
         lastMeasurementMs = millis();
-        publishMeasurement();
+        publishMeasurements();
     }
 }
