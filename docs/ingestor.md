@@ -99,53 +99,6 @@ Aby wyjść z shellu PostgreSQL:
 \q
 ```
 
-### 3.3. Testowanie za pomocą publikacji wiadomości (TLS)
-
-Broker nasłuchuje wyłącznie na porcie **8883** z TLS. Publikacja testowa z kontenera brokera:
-
-```bash
-docker compose exec broker mosquitto_pub \
-  -h broker \
-  -p 8883 \
-  --cafile /mosquitto/certs/ca.crt \
-  -t "lab/g02/esp32-test/temperature" \
-  -m '{"device_id":"esp32-test","sensor":"temperature","value":22.5,"ts_ms":1710928373000,"unit":"C","seq":1}'
-```
-
-Przykład pomiaru ciśnienia:
-
-```bash
-docker compose exec broker mosquitto_pub \
-  -h broker \
-  -p 8883 \
-  --cafile /mosquitto/certs/ca.crt \
-  -t "lab/g02/esp32-test/pressure" \
-  -m '{"device_id":"esp32-test","sensor":"pressure","value":1008.4,"ts_ms":1710928373000,"unit":"hPa","seq":2}'
-```
-
-Subskrypcja testowa (w osobnym terminalu):
-
-```bash
-docker compose exec broker mosquitto_sub \
-  -h broker \
-  -p 8883 \
-  --cafile /mosquitto/certs/ca.crt \
-  -t "lab/+/+/+"
-```
-
-Test z hosta (poza Dockerem), jeśli masz zainstalowane narzędzia Mosquitto:
-
-```bash
-mosquitto_pub \
-  -h localhost \
-  -p 8883 \
-  --cafile broker/certs/ca.crt \
-  -t "lab/g02/esp32-test/temperature" \
-  -m '{"device_id":"esp32-test","sensor":"temperature","value":22.5,"ts_ms":1710928373000,"unit":"C","seq":1}'
-```
-
----
-
 ## 4. Przykłady wiadomości (Payload JSON)
 
 ### 4.1. Poprawna wiadomość

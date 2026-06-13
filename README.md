@@ -100,8 +100,11 @@ API udostępnia między innymi:
 - `GET /devices` — lista urządzeń, które mają zapisane pomiary
 - `GET /devices/<device_id>/sensors` — lista sensorów dostępnych dla urządzenia
 - `GET /measurements` — ostatnie pomiary ze wszystkich urządzeń
+- `GET /latest` — najnowszy pojedynczy pomiar
 - `GET /measurements/<device_id>` — ostatnie pomiary wybranego urządzenia
 - `GET /measurements/<device_id>/<sensor>` — ostatnie pomiary wybranego sensora urządzenia
+
+Pełna dokumentacja endpointów znajduje się w `docs/api.md`.
 
 ### Aplikacja GUI
 
