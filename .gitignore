@@ -1,2 +1,37 @@
+# --- Secrets / environment ---
 .env
 **/.env
+esp32/include/secrets.h
+
+# --- TLS certificates & keys (generated locally by generate-certs.sh) ---
+*.key
+*.crt
+*.csr
+*.pem
+*.srl
+esp32/include/ca_cert.h
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# --- PlatformIO / ESP32 build ---
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# --- IDE / editor ---
+.vscode/
+.idea/
+*.swp
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
