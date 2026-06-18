@@ -22,6 +22,6 @@ COPY .env .
 # Utwórz użytkownika niebędącego administratorem ze względów bezpieczeństwa i przejdź do niego
 RUN useradd -m appuser && chown -R appuser /app
 USER appuser
-
+EXPOSE 5001
 # Uruchom aplikację
 CMD ["python", "app.py"]
