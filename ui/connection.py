@@ -30,11 +30,23 @@ class RestInterface():
         reply = self.nam.get(request)
         reply.finished.connect(lambda r=reply: self._on_sensors_fetched(r, callback))
 
-    def fetch_sensor_data(self, device_id, sensor, callback) -> None:
-        target_url = self.url.toString().rstrip('/') + f"/measurements/{device_id}/{sensor}"
+    def fetch_sensor_data(self, device_id, sensor, callback, from_ts=None, to_ts=None, limit=20) -> None:
+        params = [f"limit={limit}"]
+        if from_ts is not None:
+            params.append(f"from_ts={from_ts}")
+        if to_ts is not None:
+            params.append(f"to_ts={to_ts}")
+        query = "?" + "&".join(params)
+        target_url = self.url.toString().rstrip('/') + f"/measurements/{device_id}/{sensor}{query}"
         request = QNetworkRequest(QUrl(target_url))
         reply = self.nam.get(request)
         reply.finished.connect(lambda r=reply: self._on_sensor_data_fetched(r, callback))
+
+    def fetch_sensor_status(self, device_id, sensor, callback) -> None:
+        target_url = self.url.toString().rstrip('/') + f"/devices/{device_id}/sensors/{sensor}/status"
+        request = QNetworkRequest(QUrl(target_url))
+        reply = self.nam.get(request)
+        reply.finished.connect(lambda r=reply: self._on_status_fetched(r, callback))
 
     def fetch_health(self, callback) -> None:
         target_url = self.url.toString().rstrip('/') + "/health"
@@ -97,6 +109,18 @@ class RestInterface():
             callback(None)
             print(f"REST API Error: {reply.errorString()}")
             
+        reply.deleteLater()
+
+    @staticmethod
+    def _on_status_fetched(reply: QNetworkReply, callback) -> None:
+        if reply.error() == QNetworkReply.NetworkError.NoError:
+            raw_data = reply.readAll().data().decode('utf-8')
+            try:
+                callback(json.loads(raw_data))
+            except json.JSONDecodeError:
+                callback(None)
+        else:
+            callback(None)
         reply.deleteLater()
 
     @staticmethod

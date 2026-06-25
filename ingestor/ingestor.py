@@ -110,6 +110,9 @@ def on_connect(client, userdata, flags, rc, properties=None):
 
 def on_message(client, userdata, msg):
     try:
+        if msg.topic.split("/")[-1] == "status":
+            return
+
         payload = msg.payload.decode("utf-8")
         data = json.loads(payload)
 
